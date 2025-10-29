@@ -1,0 +1,2 @@
+import { exportJSON,importJSON } from '../lib/export'
+export default function Settings(){async function onImp(e:any){const f=e.target.files?.[0];if(!f)return;const j=await importJSON(f)}return(<div style={{maxWidth:1100,margin:'16px auto',padding:'0 12px'}}><h1>הגדרות וגיבויים</h1><button onClick={exportJSON}>ייצוא JSON</button><label style={{marginInlineStart:8}}>ייבוא<input type="file" accept="application/json" onChange={onImp} hidden/></label></div>)}

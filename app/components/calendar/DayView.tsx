@@ -1,0 +1,2 @@
+import { useParams } from 'react-router-dom'; import RichHebrewEditor from '../editor/RichHebrewEditor'; import AttachmentPanel from '../editor/AttachmentPanel'
+export default function DayView(){const {isoDate=''}=useParams();return(<div style={{maxWidth:1100,margin:'16px auto',padding:'0 12px'}}><h1>תצוגת יום — {isoDate}</h1><RichHebrewEditor path={`journal/${isoDate}.md`}/><AttachmentPanel day={isoDate}/></div>)}

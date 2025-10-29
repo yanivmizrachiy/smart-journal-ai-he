@@ -1,0 +1,6 @@
+import { createRoot } from 'react-dom/client'; import { BrowserRouter,Routes,Route,Navigate } from 'react-router-dom'
+import HeaderNav from './components/ui/HeaderNav'; import MonthView from './components/calendar/MonthView'; import WeekView from './components/calendar/WeekView'; import DayView from './components/calendar/DayView'; import Settings from './routes/settings'
+const saved=sessionStorage.getItem('gh-pages-path'); if(saved){sessionStorage.removeItem('gh-pages-path'); history.replaceState(null,'',saved)}
+function getIsraelYM(){const f=new Intl.DateTimeFormat('he-IL',{timeZone:'Asia/Jerusalem',year:'numeric',month:'2-digit'});const p=Object.fromEntries(f.formatToParts(new Date()).map(x=>[x.type,x.value]));return `${p.year}-${p.month}`} function Root(){return <Navigate to={`/month/${getIsraelYM()}`} replace/>}
+function App(){return(<div dir="rtl"><HeaderNav/><Routes><Route path="/" element={<Root/>}/><Route path="/month/:ym" element={<MonthView/>}/><Route path="/week/:isoWeek" element={<WeekView/>}/><Route path="/day/:isoDate" element={<DayView/>}/><Route path="/settings" element={<Settings/>}/><Route path="*" element={<Root/>}/></Routes></div>)}
+createRoot(document.getElementById('root')!).render(<BrowserRouter><App/></BrowserRouter>); if('serviceWorker'in navigator){navigator.serviceWorker.register('/sw.js')}
