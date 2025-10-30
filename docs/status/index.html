@@ -1,0 +1,31 @@
+<!doctype html><html lang="he"><head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>n8n Health Console</title>
+<style>
+ body{font-family:system-ui,Arial;margin:24px;line-height:1.5}
+ .ok{color:#0a0}.bad{color:#a00}
+ .card{border:1px solid #ddd;border-radius:12px;padding:16px;max-width:720px}
+ code,pre{background:#fafafa;border:1px solid #eee;border-radius:8px;padding:8px;display:block;overflow:auto}
+</style>
+</head><body dir="rtl">
+<h1>n8n Health Console</h1>
+<p>לוח מצב סטטי מ-GitHub Pages. הקובץ <code>data.json</code> מתעדכן אוטומטית מכל הרצות ה-Workflows (Watchdog / Self-Heal / Heartbeat).</p>
+<div class="card"><pre id="out">טוען…</pre></div>
+<script>
+(async()=>{
+  try{
+    const r = await fetch("./data.json",{cache:"no-store"});
+    const j = await r.json();
+    const ok = (j.ok===true) || (j.healed===true) || (j.http===200 || j.http===202);
+    const cls = ok ? "ok" : "bad";
+    const ts = j.time || j.timestamp || j.ts || "-";
+    const http = (j.http!=null) ? j.http : ((j.code!=null) ? j.code : "-");
+    document.getElementById("out").innerHTML =
+      `מצב: <b class="${cls}">${ok ? "תקין" : "שגוי"}</b>\nHTTP: ${http}\nזמן: ${ts}\nמקור: ${j.source || "GH Actions"}`;
+  }catch(e){
+    document.getElementById("out").textContent="אין נתונים";
+  }
+})();
+</script>
+</body></html>

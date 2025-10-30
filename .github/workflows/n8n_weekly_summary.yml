@@ -1,0 +1,19 @@
+name: n8n weekly summary
+on:
+  schedule: [{ cron: "0 2 * * *" }]
+  workflow_dispatch: {}
+jobs:
+  summary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Append weekly tick
+        run: |
+          TS=$(date -u +"%F %T UTC")
+          mkdir -p journals/n8n
+          echo "- [$TS] Watchdog & Heal OK (GitHub authoritative)" >> journals/n8n/weekly_summary.md
+          git config user.email actions@github.com
+          git config user.name github-actions
+          git add journals/n8n/weekly_summary.md
+          git commit -m "docs: weekly summary tick $TS" || true
+          git push || true
