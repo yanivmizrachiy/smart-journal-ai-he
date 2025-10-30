@@ -1,0 +1,36 @@
+name: n8n auto-restore
+on:
+  schedule: [{ cron: "*/15 * * * *" }]
+  workflow_dispatch: {}
+permissions: { contents: write, pull-requests: write }
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: decide
+        run: |
+          set -euo pipefail
+          NEED="no"
+          now=$(date -u +%s)
+          file="docs/status/data.json"
+          if [ -s "$file" ]; then
+            age=$(( now - $(date -u -r "$file" +%s) ))
+            [ $age -gt 1800 ] && NEED="yes"  # > 30min
+          else
+            NEED="yes"
+          fi
+          echo "need=$NEED" >> $GITHUB_OUTPUT
+      - if: steps.decide.outputs.need == yes
+        name: Open auto PR
+        run: |
+          set -euo pipefail
+          TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          mkdir -p docs/status
+          printf ok:falsen "$TS" > docs/status/data.json
+          BR="auto/restore-$(date +%Y%m%d-%H%M%S)"
+          git checkout -b "$BR"
+          git add docs/status/data.json
+          git -c user.email=actions@github.com -c user.name=github-actions commit -m "auto-restore: refresh data.json ($TS)"
+          git push -u origin "$BR"
+          gh pr create -B main -H "$BR" -t "auto-restore: refresh status ($TS)" -b "Auto-restore by watchdog"

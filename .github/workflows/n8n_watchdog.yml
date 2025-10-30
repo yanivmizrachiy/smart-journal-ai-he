@@ -1,0 +1,30 @@
+name: n8n watchdog (5m)
+on:
+  schedule: [{ cron: "*/5 * * * *" }]
+  workflow_dispatch: {}
+permissions: { contents: write }
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: HMAC ping
+        env:
+          N8N_WEBHOOK_URL: ${{ secrets.N8N_WEBHOOK_URL }}
+          N8N_WEBHOOK_SECRET: ${{ secrets.N8N_WEBHOOK_SECRET }}
+        run: |
+          set -euo pipefail
+          TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          BODY="{\"event\":\"watchdog\",\"ts\":\"$TS\"}"
+          SIG="sha256=$(printf "%s" "$BODY" | openssl dgst -sha256 -hmac "$N8N_WEBHOOK_SECRET" -binary | xxd -p -c 256)"
+          CODE=$(curl -s -o .status/watchdog.json -w "%{http_code}" \
+            -H "Content-Type: application/json" -H "X-Timestamp: $TS" -H "X-Signature: $SIG" \
+            --data "$BODY" "$N8N_WEBHOOK_URL" || true)
+          echo "{\"time\":\"$TS\",\"http\":$CODE,\"source\":\"watchdog\"}" > .status/watchdog.json
+          if [ "$CODE" != "200" ] && [ "$CODE" != "202" ]; then
+            echo "watchdog: failure -> trigger self-heal"
+            gh workflow run n8n_self_heal.yml || true
+          fi
+          git -c user.email=actions@github.com -c user.name=github-actions add .status/watchdog.json
+          git commit -m "watchdog: http=$CODE ts=$TS" || true
+          git push || true
