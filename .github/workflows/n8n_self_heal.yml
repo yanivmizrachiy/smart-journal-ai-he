@@ -1,0 +1,33 @@
+name: n8n self-heal
+on:
+  schedule: [{ cron: "*/15 * * * *" }]
+  workflow_dispatch: {}
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ping n8n
+        env:
+          N8N_WEBHOOK_URL: ${{ secrets.N8N_WEBHOOK_URL }}
+          N8N_WEBHOOK_SECRET: ${{ secrets.N8N_WEBHOOK_SECRET }}
+        run: |
+          set -e
+          TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          PAYLOAD="{\"repo\":\"${GITHUB_REPOSITORY}\",\"run_id\":\"${GITHUB_RUN_ID}\",\"ts\":\"$TS\",\"kind\":\"self-heal\"}"
+          SIG="sha256=$(printf "%s" "$TS.$PAYLOAD" | openssl dgst -sha256 -hmac "$N8N_WEBHOOK_SECRET" -binary | xxd -p -c 256)"
+          CODE=$(curl -s -o /tmp/resp.json -w "%{http_code}" \
+            -H "Content-Type: application/json" \
+            -H "X-Timestamp: $TS" \
+            -H "X-Signature: $SIG" \
+            --data "$PAYLOAD" "$N8N_WEBHOOK_URL" || true)
+          echo "HTTP=$CODE"
+          [ "$CODE" = "200" ] || [ "$CODE" = "202" ] || echo "::error::n8n webhook failed ($CODE)"
+      - name: Open issue on failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = `n8n webhook failure #${process.env.GITHUB_RUN_ID}`;
+            const body = `Self-heal ping failed.\nRun: ${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+            await github.rest.issues.create({ owner: context.repo.owner, repo: context.repo.repo, title, body });

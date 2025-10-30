@@ -1,7 +1,11 @@
 {
-  "phase": "hybrid_workflow_pushed",
-  "branch": "pages/hybrid-deploy-20251030-080445",
-  "pr_url": "https://github.com/yanivmizrachiy/smart-journal-ai-he/compare/main...pages/hybrid-deploy-20251030-080445?expand=1",
-  "timestamp": "2025-10-30T06:04:47Z",
-  "next": "Open PR → Merge → Run workflow → Verify HTTP 200"
+  "timestamp": "2025-10-30T08:08:44Z",
+  "branch": "main",
+  "last_commit": "65cc50f3aad6750e09216aabaf4275aa10ad319f",
+  "n8n_http_code": "000",
+  "progress": {
+    "github_sync": 100,
+    "n8n_link": 85,
+    "canvas_tracking": 100
+  }
 }
