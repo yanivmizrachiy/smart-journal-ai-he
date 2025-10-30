@@ -1,0 +1,33 @@
+name: 🚀 הפעלת n8n אוטומטית (Ops Run)
+description: הפעל פעולת n8n ישירות דרך GitHub ללא פקודות
+title: "ops/run: "
+labels: ["n8n-automation","ops"]
+body:
+  - type: input
+    id: intent
+    attributes:
+      label: כוונה (intent)
+      description: deploy_pages | heartbeat_probe | self_heal | sync_status_to_pages
+      placeholder: deploy_pages
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: הקשר (context)
+      placeholder: |
+        repo: 
+        branch: main
+        priority: high
+  - type: textarea
+    id: outputs
+    attributes:
+      label: תוצאות צפויות (outputs)
+      placeholder: update_pages_dashboard, write_status_files, open_issue_with_logs
+  - type: dropdown
+    id: priority
+    attributes:
+      label: עדיפות
+      options: [רגילה, גבוהה, קריטית]
+    validations:
+      required: true
