@@ -3,6 +3,12 @@ on:
   workflow_run:
     workflows: ["**"]
     types: [requested, in_progress, completed]
+  push:
+    branches: [ main ]
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+  release:
+    types: [published]
 
 jobs:
   notify:
