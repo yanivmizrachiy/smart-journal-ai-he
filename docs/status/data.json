@@ -1,1 +1,8 @@
-{"ok":false,"http":0,"timestamp":"2025-10-30T13:25:55Z","source":"bootstrap"}
+{
+  "timestamp": "2025-10-30T13:15:03Z",
+  "branch": "main",
+  "last_commit": "29711b34abfc6d27ee1baac20cfa049633cb7bd0",
+  "n8n_http_code": "000",
+  "progress": { "github_sync": 100, "canvas_tracking": 100, "n8n_link": 75 },
+  "gh_last_run": {}
+}
