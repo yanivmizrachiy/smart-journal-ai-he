@@ -1,69 +1,38 @@
-name: Deploy Pages (hybrid)
+name: Deploy Pages (build JS)
 on:
-  push: { branches: [ "main" ] }
-  workflow_dispatch:
-permissions: { contents: read, pages: write, id-token: write }
-concurrency: { group: "pages", cancel-in-progress: true }
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}
+permissions:
+  contents: read
+  pages: write
+  id-token: write
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Detect project type (Node or Static)
-        id: detect
-        shell: bash
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Build (pure JS)
         run: |
-          set -euo pipefail
-          APP=$(git ls-files | grep -E "^(.*\/)?package.json$" | head -n1 || true)
-          if [ -n "$APP" ]; then
-            echo "has_node=true" >> $GITHUB_OUTPUT
-            echo "app_dir=$(dirname "$APP")" >> $GITHUB_OUTPUT
+          node -v
+          if [ -f scripts/build.js ]; then
+            mkdir -p dist
+            node scripts/build.js
           else
-            echo "has_node=false" >> $GITHUB_OUTPUT
-            for d in dist build docs public .; do
-              if [ -f "$d/index.html" ]; then echo "static_dir=$d" >> $GITHUB_OUTPUT; break; fi
-            done
+            echo "::error::scripts/build.js missing"; exit 1
           fi
-      - name: Setup Node (if needed)
-        if: ${{ steps.detect.outputs.has_node == "true" }}
-        uses: actions/setup-node@v4
-        with: { node-version: "20", cache: "npm" }
-      - name: Install (if Node)
-        if: ${{ steps.detect.outputs.has_node == "true" }}
-        working-directory: ${{ steps.detect.outputs.app_dir }}
-        run: |
-          if [ -f package-lock.json ]; then npm ci; else npm i; fi
-      - name: Build (if Node)
-        if: ${{ steps.detect.outputs.has_node == "true" }}
-        working-directory: ${{ steps.detect.outputs.app_dir }}
-        run: |
-          if npm run | grep -q " build"; then npm run build
-          elif grep -q "\"vite\"" package.json; then npx vite build
-          else echo "No build script; skipping"; fi
-      - name: Resolve artifact dir
-        id: outdir
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ "${{ steps.detect.outputs.has_node }}" = "true" ]; then
-            AD="${{ steps.detect.outputs.app_dir }}"
-            if   [ -d "$AD/dist" ]; then echo "dir=$AD/dist" >> $GITHUB_OUTPUT
-            elif [ -d "$AD/build" ]; then echo "dir=$AD/build" >> $GITHUB_OUTPUT
-            elif [ -f "$AD/index.html" ]; then echo "dir=$AD" >> $GITHUB_OUTPUT
-            else echo "No artifact dir"; exit 1; fi
-          else
-            SD="${{ steps.detect.outputs.static_dir }}"
-            if [ -n "$SD" ]; then echo "dir=$SD" >> $GITHUB_OUTPUT
-            else echo "No static index.html found"; exit 1; fi
-          fi
-      - uses: actions/configure-pages@v5
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with: { path: ${{ steps.outdir.outputs.dir }} }
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
   deploy:
     needs: build
     runs-on: ubuntu-latest
-    environment: { name: github-pages, url: ${{ steps.deployment.outputs.page_url }} }
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
