@@ -1,0 +1,7 @@
+{
+  "phase": "hybrid_workflow_pushed",
+  "branch": "pages/hybrid-deploy-20251030-080445",
+  "pr_url": "https://github.com/yanivmizrachiy/smart-journal-ai-he/compare/main...pages/hybrid-deploy-20251030-080445?expand=1",
+  "timestamp": "2025-10-30T06:04:47Z",
+  "next": "Open PR → Merge → Run workflow → Verify HTTP 200"
+}
