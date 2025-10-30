@@ -1,0 +1,38 @@
+name: n8n Heartbeat Guardian
+on:
+  schedule:
+    - cron: "0 * * * *"   # כל שעה
+  workflow_dispatch:
+
+jobs:
+  heartbeat:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ping n8n Webhook
+        env:
+          N8N_WEBHOOK_URL: ${{ secrets.N8N_WEBHOOK_URL }}
+          N8N_WEBHOOK_SECRET: ${{ secrets.N8N_WEBHOOK_SECRET }}
+        run: |
+          echo "🩺 בודק זמינות n8n..."
+          TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          BODY="{\"event\":\"heartbeat\",\"timestamp\":\"$TS\"}"
+          SIG="sha256=$(printf "%s" "$BODY" | openssl dgst -sha256 -hmac "$N8N_WEBHOOK_SECRET" -binary | xxd -p -c 256)"
+          CODE=$(curl -s -o /tmp/hb.json -w "%{http_code}" \
+            -H "Content-Type: application/json" \
+            -H "X-Signature: $SIG" \
+            -H "X-Timestamp: $TS" \
+            --data "$BODY" "$N8N_WEBHOOK_URL" || true)
+          echo "HTTP Code: $CODE"
+          mkdir -p .status journals/n8n
+          echo "{\"timestamp\":\"$TS\",\"code\":\"$CODE\"}" > .status/heartbeat_status.json
+          cp .status/heartbeat_status.json "journals/n8n/hb_$(date +%Y%m%d_%H%M).json"
+          if [ "$CODE" != "200" ] && [ "$CODE" != "202" ]; then
+            echo "⚠️ n8n heartbeat failed → triggering self-heal"
+            gh workflow run -R $GITHUB_REPOSITORY n8n_self_heal.yml || true
+          fi
+          git config user.email "${GITHUB_ACTOR:-you}@users.noreply.github.com" || true
+          git config user.name  "${GITHUB_ACTOR:-local-bot}" || true
+          git add .status/heartbeat_status.json journals/n8n/ || true
+          git commit -m "heartbeat: update ($TS code=$CODE)" || true
+          git push origin "${GITHUB_REF_NAME:-main}" || true
