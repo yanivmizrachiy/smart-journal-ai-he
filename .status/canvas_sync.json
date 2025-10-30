@@ -1,11 +1,12 @@
 {
-  "timestamp": "2025-10-30T08:08:44Z",
+  "timestamp": "2025-10-30T09:57:40Z",
   "branch": "main",
-  "last_commit": "65cc50f3aad6750e09216aabaf4275aa10ad319f",
-  "n8n_http_code": "000",
+  "last_commit": "9cebc9c9d3be342d4ad7d3688fd09c58731d5039",
+  "n8n_http_code": "200",
   "progress": {
     "github_sync": 100,
-    "n8n_link": 85,
-    "canvas_tracking": 100
-  }
+    "canvas_tracking": 100,
+    "n8n_link": 100
+  },
+  "gh_last_run": {"conclusion":"success","createdAt":"2025-10-30T09:48:33Z","databaseId":18936520722,"headBranch":"main","headSha":"9cebc9c9d3be342d4ad7d3688fd09c58731d5039","name":"n8n self-heal","number":6,"status":"completed","updatedAt":"2025-10-30T09:48:39Z","url":"https://github.com/yanivmizrachiy/smart-journal-ai-he/actions/runs/18936520722","workflowName":"n8n self-heal"}
 }
