@@ -1,37 +1,29 @@
-name: Sync n8n Health to Pages
+name: sync_status_to_pages
 on:
-  workflow_run:
-    workflows: ["n8n Heartbeat Guardian", "n8n self-heal", "Notify n8n (GitHub Workflows)"]
-    types: [completed]
-  push:
-    paths:
-      - ".status/heartbeat_status.json"
-      - ".status/canvas_sync.json"
   workflow_dispatch: {}
-permissions:
-  contents: write
+  push:
+    branches: [ main ]
+    paths:
+      - ".status/**"
+permissions: { contents: write }
 jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Prepare data.json
+      - name: Prepare docs/status/data.json
         run: |
           mkdir -p docs/status
-          SRC=""
-          if [ -s .status/heartbeat_status.json ]; then SRC=".status/heartbeat_status.json"; fi
-          if [ -z "$SRC" ] && [ -s .status/canvas_sync.json ]; then SRC=".status/canvas_sync.json"; fi
-          if [ -n "$SRC" ]; then
-            cp -f "$SRC" docs/status/data.json
+          if [ -s .status/heartbeat_status.json ]; then
+            cp -f .status/heartbeat_status.json docs/status/data.json
           else
             TS=$(date -u +%FT%TZ)
-            printf "{\"ok\":false,\"http\":0,\"timestamp\":\"%s\",\"source\":\"sync-bootstrap\"}\n" "$TS" > docs/status/data.json
+            printf "{\"ok\":false,\"http\":0,\"timestamp\":\"%s\",\"source\":\"bootstrap\"}\n" "$TS" > docs/status/data.json
           fi
-          cat docs/status/data.json
-      - name: Commit & Push data.json
+      - name: Commit data.json if changed
         run: |
-          git config user.email "github-actions@github.com"
-          git config user.name  "github-actions"
-          git add docs/status/data.json
-          git commit -m "pages: sync health data from status (run $GITHUB_RUN_ID)" || true
+          git config user.email actions@github.com
+          git config user.name github-actions
+          git add docs/status/data.json || true
+          git commit -m "chore(pages): refresh data.json" || true
           git push || true

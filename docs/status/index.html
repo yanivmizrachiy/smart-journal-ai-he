@@ -10,7 +10,7 @@
 </style>
 </head><body dir="rtl">
 <h1>n8n Health Console</h1>
-<p>לוח מצב סטטי מ-GitHub Pages. הקובץ <code>data.json</code> מתעדכן אוטומטית מכל הרצות ה-Workflows (Watchdog / Self-Heal / Heartbeat).</p>
+<p>לוח מצב סטטי מ-GitHub Pages. הקובץ <code>data.json</code> מתעדכן אוטומטית מהריצות.</p>
 <div class="card"><pre id="out">טוען…</pre></div>
 <script>
 (async()=>{
@@ -22,10 +22,8 @@
     const ts = j.time || j.timestamp || j.ts || "-";
     const http = (j.http!=null) ? j.http : ((j.code!=null) ? j.code : "-");
     document.getElementById("out").innerHTML =
-      `מצב: <b class="${cls}">${ok ? "תקין" : "שגוי"}</b>\nHTTP: ${http}\nזמן: ${ts}\nמקור: ${j.source || "GH Actions"}`;
-  }catch(e){
-    document.getElementById("out").textContent="אין נתונים";
-  }
+      `מצב: <b class="${cls}">${ok ? "תקין" : "שגוי"}</b>\nHTTP: ${http}\nזמן: ${ts}\nמקור: ${j.source||"GH Actions"}`;
+  }catch(e){ document.getElementById("out").textContent="אין נתונים"; }
 })();
 </script>
 </body></html>

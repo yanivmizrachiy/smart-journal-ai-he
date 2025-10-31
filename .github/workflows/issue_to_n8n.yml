@@ -1,4 +1,4 @@
-name: Issue → n8n
+name: issue_to_n8n
 on:
   issues:
     types: [opened, edited, reopened, closed]
