@@ -1,1 +1,8 @@
-{"ok":false,"http":0,"timestamp":"2025-10-31T08:32:35Z","source":"bootstrap"}
+{
+  "timestamp": "2025-10-31T08:58:10Z",
+  "branch": "main",
+  "last_commit": "d91f8288d0923ad9ae7e9d0a09169cebf4b87247",
+  "n8n_http_code": "000",
+  "progress": { "github_sync": 100, "canvas_tracking": 100, "n8n_link": 75 },
+  "gh_last_run": {"conclusion":"failure","createdAt":"2025-10-31T08:57:56Z","databaseId":18967670686,"headBranch":"main","status":"completed","updatedAt":"2025-10-31T08:58:06Z","url":"https://github.com/yanivmizrachiy/smart-journal-ai-he/actions/runs/18967670686"}
+}
