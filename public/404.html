@@ -1,1 +1,6 @@
-<!doctype html><meta charset="utf-8"><script>location.replace("/");</script>
+<!doctype html><meta charset="utf-8">
+<script>
+  // שיחזור ל-root עם תצוגת חודש כברירת מחדל
+  const d=new Date(), ym=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  location.replace('/?view=month&ym='+ym);
+</script>

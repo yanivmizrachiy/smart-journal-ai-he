@@ -1,1 +1,245 @@
-<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><link rel="manifest" href="/manifest.webmanifest"><title>היומן החכם — חודש תחילה</title></head><body style="margin:0;background:#f7fafc;color:#0f172a"><div id="root"></div><script type="module" src="/app/main.tsx"></script></body></html>
+<!doctype html><html lang="he" dir="rtl"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>יומן חכם בעברית — חודש/שבוע/יום</title>
+<style>
+  :root{--bg:#0b1b2b;--panel:#0f253d;--txt:#fff;--accent:#4da6ff;--cell:rgba(255,255,255,.06);--line:rgba(255,255,255,.12)}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--txt);font-family:system-ui,-apple-system,"Noto Sans Hebrew",sans-serif}
+  header{display:flex;gap:.5rem;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--panel);position:sticky;top:0}
+  a.btn,button.btn{color:var(--accent);background:transparent;border:1px solid var(--accent);padding:.35rem .7rem;border-radius:.6rem;text-decoration:none;cursor:pointer}
+  main{max-width:1100px;margin:0 auto;padding:16px}
+  .grid{display:grid;gap:8px;padding:8px}
+  .grid.month{grid-template-columns:repeat(7,1fr)}
+  .grid.week{grid-template-columns:repeat(7,1fr)}
+  .cell{min-height:92px;background:var(--cell);border:1px solid var(--line);border-radius:12px;padding:8px;display:block;color:var(--txt);text-decoration:none}
+  .cell:hover{outline:1px solid var(--accent)}
+  .dayHead{font-weight:700;opacity:.95;margin-bottom:.25rem}
+  .toolbar{display:flex;gap:.5rem;flex-wrap:wrap}
+  textarea{width:100%;min-height:320px;border-radius:12px;border:1px solid var(--line);background:var(--cell);color:var(--txt);padding:12px}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  label{opacity:.9}
+  .pill{display:inline-block;padding:.15rem .5rem;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid var(--line);margin-inline-end:.25rem}
+</style>
+</head><body>
+
+<header>
+  <nav class="toolbar">
+    <a class="btn" data-nav="month">חודש</a>
+    <a class="btn" data-nav="week">שבוע</a>
+    <a class="btn" data-nav="day">יום</a>
+  </nav>
+  <div class="toolbar">
+    <button class="btn" id="prev">קודם</button>
+    <button class="btn" id="today">היום</button>
+    <button class="btn" id="next">הבא</button>
+  </div>
+</header>
+
+<main id="app"></main>
+
+<script>
+(function(){
+  const app = document.getElementById('app');
+
+  // ===== Router (search params) =====
+  function getParams(){
+    const p = new URLSearchParams(location.search);
+    return {
+      view: p.get('view') || 'month',
+      ym:   p.get('ym')   || isoMonth(new Date()),
+      iso:  p.get('iso')  || isoDate(new Date()),
+      iw:   p.get('iw')   || isoWeekId(new Date()), // YYYY-Www
+    };
+  }
+  function setParams(obj){
+    const p = new URLSearchParams(location.search);
+    Object.entries(obj).forEach(([k,v])=> p.set(k,v));
+    history.pushState({}, '', `?${p.toString()}`);
+    render();
+  }
+
+  // ===== Dates helpers =====
+  const pad2 = n => String(n).padStart(2,'0');
+  function isoDate(d){ return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}` }
+  function isoMonth(d){ return `${d.getFullYear()}-${pad2(d.getMonth()+1)}` }
+  function getISOWeek(d){
+    const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    const dayNum = (t.getUTCDay() + 6) % 7;
+    t.setUTCDate(t.getUTCDate() - dayNum + 3);
+    const firstThursday = new Date(Date.UTC(t.getUTCFullYear(),0,4));
+    const week = 1 + Math.round(((t - firstThursday)/86400000 - 3 + ((firstThursday.getUTCDay()+6)%7))/7);
+    return week;
+  }
+  function isoWeekId(d){ return `${d.getFullYear()}-W${pad2(getISOWeek(d))}` }
+
+  // ===== Storage (local-only for now) =====
+  function loadDay(iso){
+    try{ return JSON.parse(localStorage.getItem(`journal:${iso}`) || '{}') } catch(_){ return {} }
+  }
+  function saveDay(iso, data){
+    localStorage.setItem(`journal:${iso}`, JSON.stringify(data));
+  }
+
+  // ===== UI: Month =====
+  function MonthView(ym){
+    const [Y,M] = ym.split('-').map(Number);
+    const first = new Date(Y, M-1, 1);
+    const startDay = (first.getDay()+6)%7; // שבוע מתחיל א'
+    const days = new Date(Y, M, 0).getDate();
+
+    const header = `
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <h1 style="margin:0">תצוגת חודש — ${ym}</h1>
+        <div>
+          <span class="pill">לחיצה על יום פותחת עריכה</span>
+          <span class="pill">עברית • RTL • שמירה מיידית</span>
+        </div>
+      </div>`;
+    const grid = document.createElement('div'); grid.className='grid month';
+
+    for(let i=0;i<startDay;i++){ const e=document.createElement('div'); e.className='cell'; grid.appendChild(e); }
+    for(let d=1; d<=days; d++){
+      const iso = `${Y}-${pad2(M)}-${pad2(d)}`;
+      const a = document.createElement('a'); a.href='javascript:void(0)'; a.className='cell';
+      a.onclick = ()=> setParams({view:'day', iso});
+      const head = document.createElement('div'); head.className='dayHead'; head.textContent = d;
+      a.appendChild(head);
+
+      // נקודות צבע/מצב קצר מה־storage
+      const st = loadDay(iso);
+      if (st && st.tags){
+        const tags = String(st.tags).split(',').map(s=>s.trim()).filter(Boolean).slice(0,3);
+        const t = document.createElement('div'); t.style.opacity=.9; t.style.fontSize='.85rem'; t.textContent = tags.join(' · ');
+        a.appendChild(t);
+      }
+      grid.appendChild(a);
+    }
+
+    const wrap = document.createElement('div');
+    wrap.innerHTML = header;
+    wrap.appendChild(grid);
+    return wrap;
+  }
+
+  // ===== UI: Week =====
+  function WeekView(iw){
+    const [Y, w] = iw.split('-W'); const year=Number(Y), week=Number(w);
+    const startOfISOWeek = (year, week) => {
+      const simple = new Date(year, 0, 1 + (week - 1) * 7);
+      const dow = (simple.getDay()+6)%7;
+      simple.setDate(simple.getDate() - dow);
+      return simple;
+    };
+    const start = startOfISOWeek(year, week);
+    const header = `<h1>תצוגת שבוע — ${iw}</h1>`;
+    const grid = document.createElement('div'); grid.className='grid week';
+
+    for(let i=0;i<7;i++){
+      const d=new Date(start); d.setDate(d.getDate()+i);
+      const iso = isoDate(d);
+      const a=document.createElement('a'); a.href='javascript:void(0)'; a.className='cell'; a.onclick=()=>setParams({view:'day', iso});
+      const head=document.createElement('div'); head.className='dayHead'; head.textContent = iso;
+      a.appendChild(head);
+      const st=loadDay(iso); if (st && st.tags){ const t=document.createElement('div'); t.textContent=String(st.tags); t.style.opacity=.9; t.style.fontSize='.85rem'; a.appendChild(t); }
+      grid.appendChild(a);
+    }
+    const wrap=document.createElement('div'); wrap.innerHTML=header; wrap.appendChild(grid); return wrap;
+  }
+
+  // ===== UI: Day (Editor) =====
+  function DayView(iso){
+    const d = new Date(iso);
+    const st = loadDay(iso) || {};
+    const wrap = document.createElement('div');
+    wrap.innerHTML = `
+      <h1 style="margin:0 0 .5rem 0">תצוגת יום — ${iso}</h1>
+      <div class="row">
+        <label>תגים: <input id="tags" value="${st.tags||''}" placeholder="תובנות, מתמטיקה"></label>
+        <label>מצב רוח:
+          <select id="mood">
+            ${['רגוע','שמח','לחוץ','עייף'].map(x=>`<option ${st.mood===x?'selected':''}>${x}</option>`).join('')}
+          </select>
+        </label>
+        <label>צבע רקע: <input id="bg" type="color" value="${st.bg||'#0b1b2b'}"></label>
+      </div>
+      <textarea id="text" placeholder="כתוב ביומן בעברית...">${st.text||''}</textarea>
+      <div class="row">
+        <input type="file" id="file" multiple>
+        <button class="btn" id="save">שמירה</button>
+        <button class="btn" id="export">יצוא כ-Markdown</button>
+      </div>
+    `;
+
+    // צבע רקע
+    document.body.style.background = st.bg||'#0b1b2b';
+    wrap.querySelector('#bg').oninput = (e)=> document.body.style.background = e.target.value;
+
+    // שמירה מיידית (localStorage)
+    wrap.querySelector('#save').onclick = ()=>{
+      const data = {
+        iso,
+        tags: wrap.querySelector('#tags').value.trim(),
+        mood: wrap.querySelector('#mood').value,
+        bg: wrap.querySelector('#bg').value,
+        text: wrap.querySelector('#text').value
+      };
+      saveDay(iso, data);
+      alert('נשמר מיידית (מקומית).');
+    };
+
+    // יצוא Markdown (להעלאה ל-Git)
+    wrap.querySelector('#export').onclick = ()=>{
+      const data = loadDay(iso);
+      const fm = [
+        '---',
+        `כותרת: "יומן ${iso}"`,
+        `תאריך_עברית: ""`,
+        `תגים: [${(data.tags||'').split(',').map(s=>`"${s.trim()}"`).filter(Boolean).join(', ')}]`,
+        `מצב_רוח: ${data.mood||'רגוע'}`,
+        `צבע_רקע: "${data.bg||'#0b1b2b'}"`,
+        '---','',data.text||'',''
+      ].join('\n');
+      const blob = new Blob([fm], {type:'text/markdown;charset=utf-8'});
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${iso}.md`; a.click();
+    };
+
+    return wrap;
+  }
+
+  // ===== Navigation toolbar actions =====
+  document.querySelectorAll('[data-nav]').forEach(el=>{
+    el.onclick = ()=>{
+      const v = el.getAttribute('data-nav');
+      if (v==='month') setParams({view:'month', ym: isoMonth(new Date())});
+      if (v==='week')  setParams({view:'week' , iw: isoWeekId(new Date())});
+      if (v==='day')   setParams({view:'day'  , iso: isoDate(new Date())});
+    };
+  });
+  document.getElementById('today').onclick = ()=> setParams({view:getParams().view, ym:isoMonth(new Date()), iw:isoWeekId(new Date()), iso:isoDate(new Date())});
+  document.getElementById('prev').onclick = ()=>{
+    const p=getParams();
+    if (p.view==='month'){ const [Y,M]=p.ym.split('-').map(Number); const dt=new Date(Y,M-2,1); setParams({ym:isoMonth(dt)}); }
+    if (p.view==='week'){  const [Y,w]=p.iw.split('-W').map(Number); const dt=new Date(); dt.setDate(dt.getDate()-7); setParams({iw:isoWeekId(dt)}); }
+    if (p.view==='day'){   const dt=new Date(p.iso); dt.setDate(dt.getDate()-1); setParams({iso:isoDate(dt)}); }
+  };
+  document.getElementById('next').onclick = ()=>{
+    const p=getParams();
+    if (p.view==='month'){ const [Y,M]=p.ym.split('-').map(Number); const dt=new Date(Y,M,1); setParams({ym:isoMonth(dt)}); }
+    if (p.view==='week'){  const dt=new Date(); dt.setDate(dt.getDate()+7); setParams({iw:isoWeekId(dt)}); }
+    if (p.view==='day'){   const dt=new Date(p.iso); dt.setDate(dt.getDate()+1); setParams({iso:isoDate(dt)}); }
+  };
+
+  // ===== Render =====
+  function render(){
+    const p=getParams();
+    app.innerHTML='';
+    if (p.view==='month') app.appendChild(MonthView(p.ym));
+    else if (p.view==='week') app.appendChild(WeekView(p.iw));
+    else app.appendChild(DayView(p.iso));
+  }
+
+  // ברירת מחדל: חודש
+  if (!location.search) setParams({view:'month', ym: isoMonth(new Date())}); else render();
+  window.onpopstate = render;
+})();
+</script>
+</body></html>
