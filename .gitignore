@@ -1,0 +1,10 @@
+# מקומי/כלי פיתוח – לא לעקוב אחריהם
+.nvm.disabled*
+.cache/
+.cache/gh/
+blue-page-site/
+smart-grade-raz/
+smart-grades-hub-yaniv-raz/
+# קבצי מערכת/עורך
+.DS_Store
+Thumbs.db
