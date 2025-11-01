@@ -1,0 +1,6 @@
+<!doctype html><meta charset="utf-8">
+<script>
+  // הפניה לתצוגת חודש של החודש הנוכחי (YYYY-MM), בעברית
+  const d=new Date(), ym=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  location.replace(`/month/${ym}`);
+</script>

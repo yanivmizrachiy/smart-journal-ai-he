@@ -1,0 +1,56 @@
+<!doctype html><html lang="he" dir="rtl"><meta charset="utf-8">
+<title>יומן — תצוגת חודש</title>
+<style>
+  body{font-family:system-ui,-apple-system,"Noto Sans Hebrew",sans-serif;background:#0b1b2b;color:#fff;margin:0}
+  header{display:flex;gap:.5rem;align-items:center;justify-content:space-between;padding:12px 16px;background:#0f253d;position:sticky;top:0}
+  a.btn{color:#4da6ff;text-decoration:none;border:1px solid #4da6ff;padding:.35rem .7rem;border-radius:.6rem}
+  .grid{display:grid;gap:8px;padding:12px;grid-template-columns:repeat(7,1fr)}
+  .cell{min-height:88px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:8px}
+  .day{font-weight:700;opacity:.9;margin-bottom:.25rem}
+</style>
+<body>
+<header>
+  <nav>
+    <a class="btn" href="/">חודש</a>
+    <a class="btn" id="goWeek">שבוע</a>
+    <a class="btn" id="goDay">יום</a>
+  </nav>
+  <div>
+    <a class="btn" id="prev">חודש קודם</a>
+    <a class="btn" id="today">היום</a>
+    <a class="btn" id="next">חודש הבא</a>
+  </div>
+</header>
+<main>
+  <div class="grid" id="grid"></div>
+</main>
+<script>
+  // קריאת הפרמטר מה־URL: /month/YYYY-MM
+  const ym = location.pathname.split('/').pop();
+  const [y,m] = ym.split('-').map(Number);
+  const first = new Date(y, m-1, 1);
+  const startDay = (first.getDay()+6)%7; // שהשבוע יתחיל ביום א'
+  const daysInMonth = new Date(y, m, 0).getDate();
+  const grid = document.getElementById('grid');
+
+  // מילוי ריבועי החודש
+  for (let i=0;i<startDay;i++){ const s=document.createElement('div'); s.className='cell'; grid.appendChild(s); }
+  for (let d=1; d<=daysInMonth; d++){
+    const cell=document.createElement('a');
+    cell.href=`/day/${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    cell.className='cell';
+    const head=document.createElement('div'); head.className='day'; head.textContent=d;
+    cell.appendChild(head);
+    grid.appendChild(cell);
+  }
+
+  // ניווט כפתורים
+  document.getElementById('today').onclick=()=>{ const dt=new Date(), ym=`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}`; location.href=`/month/${ym}` };
+  document.getElementById('prev').onclick=()=>{ const dt=new Date(y, m-2, 1), ym=`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}`; location.href=`/month/${ym}` };
+  document.getElementById('next').onclick=()=>{ const dt=new Date(y, m, 1), ym=`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}`; location.href=`/month/${ym}` };
+  document.getElementById('goWeek').onclick=()=>{ const dt=new Date(y, m-1, 1); const week = getISOWeek(new Date()); location.href=`/week/${dt.getFullYear()}-W${String(week).padStart(2,'0')}` };
+  document.getElementById('goDay').onclick=()=>{ const dt=new Date(); const iso=`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`; location.href=`/day/${iso}` };
+
+  function getISOWeek(date){ const tmp=new Date(date.getTime()); tmp.setHours(0,0,0,0); tmp.setDate(tmp.getDate()+3-((tmp.getDay()+6)%7)); const week1=new Date(tmp.getFullYear(),0,4); return 1+Math.round(((tmp.getTime()-week1.getTime())/86400000-3+((week1.getDay()+6)%7))/7); }
+</script>
+</body></html>

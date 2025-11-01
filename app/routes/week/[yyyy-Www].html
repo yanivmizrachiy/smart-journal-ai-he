@@ -1,0 +1,54 @@
+<!doctype html><html lang="he" dir="rtl"><meta charset="utf-8">
+<title>יומן — תצוגת שבוע</title>
+<style>
+  body{font-family:system-ui,-apple-system,"Noto Sans Hebrew",sans-serif;background:#0b1b2b;color:#fff;margin:0}
+  header{display:flex;gap:.5rem;align-items:center;justify-content:space-between;padding:12px 16px;background:#0f253d;position:sticky;top:0}
+  a.btn{color:#4da6ff;text-decoration:none;border:1px solid #4da6ff;padding:.35rem .7rem;border-radius:.6rem}
+  .grid{display:grid;gap:8px;padding:12px;grid-template-columns:repeat(7,1fr)}
+  .cell{min-height:120px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:8px}
+  .day{font-weight:700;opacity:.9;margin-bottom:.25rem}
+</style>
+<body>
+<header>
+  <nav>
+    <a class="btn" href="/">חודש</a>
+    <a class="btn" id="goWeek">שבוע</a>
+    <a class="btn" id="goDay">יום</a>
+  </nav>
+  <div>
+    <a class="btn" id="prev">שבוע קודם</a>
+    <a class="btn" id="today">השבוע</a>
+    <a class="btn" id="next">שבוע הבא</a>
+  </div>
+</header>
+<main><div class="grid" id="grid"></div></main>
+<script>
+  const ws=location.pathname.split('/').pop(); // YYYY-Www
+  const [y, wRaw] = ws.split('-W'); const yNum=Number(y), wNum=Number(wRaw);
+  const grid=document.getElementById('grid');
+
+  const startOfISOWeek = (year, week) => {
+    const simple = new Date(year, 0, 1 + (week - 1) * 7);
+    const dow = (simple.getDay()+6)%7;
+    simple.setDate(simple.getDate() - dow);
+    return simple;
+  };
+  const start = startOfISOWeek(yNum, wNum);
+
+  for(let i=0;i<7;i++){
+    const d=new Date(start); d.setDate(d.getDate()+i);
+    const iso=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const cell=document.createElement('a'); cell.href=`/day/${iso}`; cell.className='cell';
+    const head=document.createElement('div'); head.className='day'; head.textContent=iso;
+    cell.appendChild(head); grid.appendChild(cell);
+  }
+
+  document.getElementById('today').onclick=()=>{ const t=new Date(); const w=getISOWeek(t); location.href=`/week/${t.getFullYear()}-W${String(w).padStart(2,'0')}` };
+  document.getElementById('prev').onclick=()=>{ const w=wNum-1 || 52; const y=(wNum-1<1)? yNum-1:yNum; location.href=`/week/${y}-W${String(w).padStart(2,'0')}` };
+  document.getElementById('next').onclick=()=>{ const w=wNum+1>52?1:wNum+1; const y=(wNum+1>52)? yNum+1:yNum; location.href=`/week/${y}-W${String(w).padStart(2,'0')}` };
+  document.getElementById('goDay').onclick=()=>{ const t=new Date(); const iso=`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`; location.href=`/day/${iso}` };
+  document.getElementById('goWeek').onclick=()=>location.reload();
+
+  function getISOWeek(date){ const tmp=new Date(date.getTime()); tmp.setHours(0,0,0,0); tmp.setDate(tmp.getDate()+3-((tmp.getDay()+6)%7)); const week1=new Date(tmp.getFullYear(),0,4); return 1+Math.round(((tmp.getTime()-week1.getTime())/86400000-3+((week1.getDay()+6)%7))/7); }
+</script>
+</body></html>

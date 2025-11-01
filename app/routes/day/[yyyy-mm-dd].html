@@ -1,0 +1,101 @@
+<!doctype html><html lang="he" dir="rtl"><meta charset="utf-8">
+<title>יומן — תצוגת יום</title>
+<style>
+  body{font-family:system-ui,-apple-system,"Noto Sans Hebrew",sans-serif;background:#0b1b2b;color:#fff;margin:0}
+  header{display:flex;gap:.5rem;align-items:center;justify-content:space-between;padding:12px 16px;background:#0f253d;position:sticky;top:0}
+  a.btn,button.btn{color:#4da6ff;background:transparent;cursor:pointer;border:1px solid #4da6ff;padding:.35rem .7rem;border-radius:.6rem;text-decoration:none}
+  main{max-width:960px;margin:0 auto;padding:16px}
+  textarea{width:100%;min-height:320px;border-radius:12px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.06);color:#fff;padding:12px}
+  .row{display:flex;gap:8px;flex-wrap:wrap}
+  .meta{display:flex;gap:8px;align-items:center}
+  label{opacity:.9}
+</style>
+<body>
+<header>
+  <nav class="row">
+    <a class="btn" href="/">חודש</a>
+    <a class="btn" id="goWeek">שבוע</a>
+    <a class="btn" id="goDay">יום</a>
+  </nav>
+  <div class="row">
+    <a class="btn" id="prev">יום קודם</a>
+    <a class="btn" id="today">היום</a>
+    <a class="btn" id="next">יום הבא</a>
+  </div>
+</header>
+<main>
+  <h1 id="title">תצוגת יום</h1>
+  <div class="meta">
+    <label>תגים: <input id="tags" placeholder="תובנות, מתמטיקה" /></label>
+    <label>מצב רוח:
+      <select id="mood">
+        <option>רגוע</option><option>שמח</option><option>לחוץ</option><option>עייף</option>
+      </select>
+    </label>
+    <label>צבע רקע: <input id="bg" type="color" value="#0b1b2b" /></label>
+  </div>
+  <textarea id="text" placeholder="כתוב כאן ביומן... בעברית, עם תובנות ומשימות."></textarea>
+  <div class="row">
+    <input type="file" id="file" multiple />
+    <button class="btn" id="save">שמירה</button>
+  </div>
+</main>
+<script>
+  // ISO מהנתיב
+  const iso = location.pathname.split('/').pop();
+  document.getElementById('title').textContent = `יומן — ${iso}`;
+  // ניווט
+  const d = new Date(iso);
+  const fmt = (x)=> String(x).padStart(2,'0');
+  document.getElementById('prev').onclick=()=>{ const p=new Date(d); p.setDate(d.getDate()-1); location.href=`/day/${p.getFullYear()}-${fmt(p.getMonth()+1)}-${fmt(p.getDate())}` };
+  document.getElementById('next').onclick=()=>{ const n=new Date(d); n.setDate(d.getDate()+1); location.href=`/day/${n.getFullYear()}-${fmt(n.getMonth()+1)}-${fmt(n.getDate())}` };
+  document.getElementById('today').onclick=()=>{ const t=new Date(); location.href=`/day/${t.getFullYear()}-${fmt(t.getMonth()+1)}-${fmt(t.getDate())}` };
+  document.getElementById('goWeek').onclick=()=>{ const w=getISOWeek(d); location.href=`/week/${d.getFullYear()}-W${fmt(w)}` };
+  document.getElementById('goDay').onclick=()=>location.reload();
+  function getISOWeek(date){ const tmp=new Date(date.getTime()); tmp.setHours(0,0,0,0); tmp.setDate(tmp.getDate()+3-((tmp.getDay()+6)%7)); const week1=new Date(tmp.getFullYear(),0,4); return 1+Math.round(((tmp.getTime()-week1.getTime())/86400000-3+((week1.getDay()+6)%7))/7); }
+
+  // טעינה/שמירה מקומית (localStorage) — מיידי, בעברית
+  const key = `journal:${iso}`;
+  const state = JSON.parse(localStorage.getItem(key) || '{}');
+  document.getElementById('text').value = state.text || '';
+  document.getElementById('tags').value = state.tags || '';
+  document.getElementById('mood').value = state.mood || 'רגוע';
+  document.getElementById('bg').value = state.bg || '#0b1b2b';
+  document.body.style.background = document.getElementById('bg').value;
+
+  document.getElementById('bg').oninput = (e)=> document.body.style.background = e.target.value;
+
+  document.getElementById('save').onclick = async ()=>{
+    const content = {
+      iso,
+      tags: document.getElementById('tags').value.trim(),
+      mood: document.getElementById('mood').value,
+      bg: document.getElementById('bg').value,
+      text: document.getElementById('text').value
+    };
+    // שמירה מיידית מקומית
+    localStorage.setItem(key, JSON.stringify(content));
+
+    // הכנה לשמירה ל־Git: ניצור Markdown עם front-matter בעברית
+    const fm = [
+      '---',
+      `כותרת: "יומן ${iso}"`,
+      `תאריך_עברית: ""`,
+      `תגים: [${content.tags.split(',').map(s=>`"${s.trim()}"`).filter(Boolean).join(', ')}]`,
+      `מצב_רוח: ${content.mood}`,
+      `צבע_רקע: "${content.bg}"`,
+      '---','',content.text,''
+    ].join('\n');
+
+    // שמירה לקובץ ביומן — הצד שלך יבצע את ה-commit (ראה README_he.md)
+    // אפשרות א: fetch ל-API פנימי שיכתוב לקובץ ויבצע commit (אם מותר ב-Pages App)
+    // אפשרות ב: הורדה מקומית כקובץ שתעלה ידנית
+    const blob = new Blob([fm], {type:'text/markdown;charset=utf-8'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${iso}.md`; // journal/YYYY/YYYY-MM-DD.md — תסדר בשרת/בוט
+    a.click();
+    alert("נשמר מקומית + יוצר קובץ Markdown להעלאה/סנכרון ל-Git.");
+  };
+</script>
+</body></html>
