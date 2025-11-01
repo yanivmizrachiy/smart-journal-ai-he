@@ -1,6 +1,8 @@
 <!doctype html><html lang="he" dir="rtl"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>יומן חכם בעברית — חודש/שבוע/יום</title>
+<title>היומן החכם בעברית — חודש/שבוע/יום</title>
+<link rel="manifest" href="/public/manifest.webmanifest">
+<link rel="icon" href="/public/favicon.svg">
 <style>
   :root{--bg:#0b1b2b;--panel:#0f253d;--txt:#fff;--accent:#4da6ff;--cell:rgba(255,255,255,.06);--line:rgba(255,255,255,.12)}
   *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--txt);font-family:system-ui,-apple-system,"Noto Sans Hebrew",sans-serif}
@@ -20,7 +22,6 @@
   .pill{display:inline-block;padding:.15rem .5rem;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid var(--line);margin-inline-end:.25rem}
 </style>
 </head><body>
-
 <header>
   <nav class="toolbar">
     <a class="btn" data-nav="month">חודש</a>
@@ -33,21 +34,30 @@
     <button class="btn" id="next">הבא</button>
   </div>
 </header>
-
 <main id="app"></main>
-
 <script>
 (function(){
   const app = document.getElementById('app');
+  const pad2 = n => String(n).padStart(2,'0');
+  const isoDate = d => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+  const isoMonth = d => `${d.getFullYear()}-${pad2(d.getMonth()+1)}`;
 
-  // ===== Router (search params) =====
+  function getISOWeek(d){
+    const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    const dayNum = (t.getUTCDay() + 6) % 7;
+    t.setUTCDate(t.getUTCDate() - dayNum + 3);
+    const firstThursday = new Date(Date.UTC(t.getUTCFullYear(),0,4));
+    return 1 + Math.round(((t - firstThursday)/86400000 - 3 + ((firstThursday.getUTCDay()+6)%7))/7);
+  }
+  const isoWeekId = d => `${d.getFullYear()}-W${pad2(getISOWeek(d))}`;
+
   function getParams(){
     const p = new URLSearchParams(location.search);
     return {
-      view: p.get('view') || 'month',
-      ym:   p.get('ym')   || isoMonth(new Date()),
-      iso:  p.get('iso')  || isoDate(new Date()),
-      iw:   p.get('iw')   || isoWeekId(new Date()), // YYYY-Www
+      view: p.get('view')||'month',
+      ym:   p.get('ym')  || isoMonth(new Date()),
+      iso:  p.get('iso') || isoDate(new Date()),
+      iw:   p.get('iw')  || isoWeekId(new Date())
     };
   }
   function setParams(obj){
@@ -57,107 +67,79 @@
     render();
   }
 
-  // ===== Dates helpers =====
-  const pad2 = n => String(n).padStart(2,'0');
-  function isoDate(d){ return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}` }
-  function isoMonth(d){ return `${d.getFullYear()}-${pad2(d.getMonth()+1)}` }
-  function getISOWeek(d){
-    const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-    const dayNum = (t.getUTCDay() + 6) % 7;
-    t.setUTCDate(t.getUTCDate() - dayNum + 3);
-    const firstThursday = new Date(Date.UTC(t.getUTCFullYear(),0,4));
-    const week = 1 + Math.round(((t - firstThursday)/86400000 - 3 + ((firstThursday.getUTCDay()+6)%7))/7);
-    return week;
-  }
-  function isoWeekId(d){ return `${d.getFullYear()}-W${pad2(getISOWeek(d))}` }
+  // תאריך עברי
+  window.heDate = function(d){
+    try{
+      const f=new Intl.DateTimeFormat("he-u-ca-hebrew",{day:"numeric",month:"long",year:"numeric"});
+      return f.format(d instanceof Date ? d : new Date(d));
+    }catch(e){ return "" }
+  };
 
-  // ===== Storage (local-only for now) =====
-  function loadDay(iso){
-    try{ return JSON.parse(localStorage.getItem(`journal:${iso}`) || '{}') } catch(_){ return {} }
-  }
-  function saveDay(iso, data){
-    localStorage.setItem(`journal:${iso}`, JSON.stringify(data));
-  }
+  // שמירה מקומית
+  const loadDay = iso => { try { return JSON.parse(localStorage.getItem(`journal:${iso}`)||'{}') } catch(_) { return {} } };
+  const saveDay = (iso,data) => localStorage.setItem(`journal:${iso}`, JSON.stringify(data));
 
-  // ===== UI: Month =====
+  // ===== תצוגות =====
   function MonthView(ym){
-    const [Y,M] = ym.split('-').map(Number);
-    const first = new Date(Y, M-1, 1);
-    const startDay = (first.getDay()+6)%7; // שבוע מתחיל א'
-    const days = new Date(Y, M, 0).getDate();
+    const [Y,M]=ym.split('-').map(Number);
+    const first=new Date(Y,M-1,1);
+    const startDay=(first.getDay()+6)%7;
+    const days=new Date(Y,M,0).getDate();
 
-    const header = `
-      <div class="row" style="justify-content:space-between;align-items:center">
-        <h1 style="margin:0">תצוגת חודש — ${ym}</h1>
-        <div>
-          <span class="pill">לחיצה על יום פותחת עריכה</span>
-          <span class="pill">עברית • RTL • שמירה מיידית</span>
-        </div>
-      </div>`;
-    const grid = document.createElement('div'); grid.className='grid month';
+    const header = `<div class="row" style="justify-content:space-between;align-items:center">
+      <h1 style="margin:0">תצוגת חודש — ${ym}</h1>
+      <div><span class="pill">לחיצה על יום פותחת עריכה</span><span class="pill">עברית • RTL • שמירה</span></div></div>`;
 
+    const grid=document.createElement('div'); grid.className='grid month';
     for(let i=0;i<startDay;i++){ const e=document.createElement('div'); e.className='cell'; grid.appendChild(e); }
     for(let d=1; d<=days; d++){
       const iso = `${Y}-${pad2(M)}-${pad2(d)}`;
-      const a = document.createElement('a'); a.href='javascript:void(0)'; a.className='cell';
-      a.onclick = ()=> setParams({view:'day', iso});
-      const head = document.createElement('div'); head.className='dayHead'; head.textContent = d;
-      a.appendChild(head);
-
-      // נקודות צבע/מצב קצר מה־storage
-      const st = loadDay(iso);
-      if (st && st.tags){
-        const tags = String(st.tags).split(',').map(s=>s.trim()).filter(Boolean).slice(0,3);
-        const t = document.createElement('div'); t.style.opacity=.9; t.style.fontSize='.85rem'; t.textContent = tags.join(' · ');
+      const a=document.createElement('a'); a.href='javascript:void(0)'; a.className='cell';
+      a.onclick=()=>setParams({view:'day', iso});
+      const head=document.createElement('div'); head.className='dayHead'; head.textContent=d; a.appendChild(head);
+      const st=loadDay(iso);
+      if(st && st.tags){
+        const t=document.createElement('div'); t.style.opacity=.9; t.style.fontSize='.85rem';
+        t.textContent=String(st.tags).split(',').slice(0,3).join(' · ');
         a.appendChild(t);
       }
       grid.appendChild(a);
     }
-
-    const wrap = document.createElement('div');
-    wrap.innerHTML = header;
+    const wrap=document.createElement('div');
+    wrap.insertAdjacentHTML('afterbegin', header);
     wrap.appendChild(grid);
     return wrap;
   }
 
-  // ===== UI: Week =====
   function WeekView(iw){
-    const [Y, w] = iw.split('-W'); const year=Number(Y), week=Number(w);
-    const startOfISOWeek = (year, week) => {
-      const simple = new Date(year, 0, 1 + (week - 1) * 7);
-      const dow = (simple.getDay()+6)%7;
-      simple.setDate(simple.getDate() - dow);
-      return simple;
-    };
-    const start = startOfISOWeek(year, week);
-    const header = `<h1>תצוגת שבוע — ${iw}</h1>`;
-    const grid = document.createElement('div'); grid.className='grid week';
+    const [Y,w]=iw.split('-W'); const year=Number(Y), week=Number(w);
+    const startOfISOWeek=(year,week)=>{ const s=new Date(year,0,1+(week-1)*7); const dow=(s.getDay()+6)%7; s.setDate(s.getDate()-dow); return s; };
+    const start=startOfISOWeek(year,week);
 
+    const header = `<h1>תצוגת שבוע — ${iw}</h1>`;
+    const grid=document.createElement('div'); grid.className='grid week';
     for(let i=0;i<7;i++){
       const d=new Date(start); d.setDate(d.getDate()+i);
-      const iso = isoDate(d);
-      const a=document.createElement('a'); a.href='javascript:void(0)'; a.className='cell'; a.onclick=()=>setParams({view:'day', iso});
-      const head=document.createElement('div'); head.className='dayHead'; head.textContent = iso;
-      a.appendChild(head);
-      const st=loadDay(iso); if (st && st.tags){ const t=document.createElement('div'); t.textContent=String(st.tags); t.style.opacity=.9; t.style.fontSize='.85rem'; a.appendChild(t); }
+      const iso=isoDate(d);
+      const a=document.createElement('a'); a.href='javascript:void(0)'; a.className='cell';
+      a.onclick=()=>setParams({view:'day', iso});
+      const head=document.createElement('div'); head.className='dayHead'; head.textContent=iso; a.appendChild(head);
+      const st=loadDay(iso);
+      if(st && st.tags){ const t=document.createElement('div'); t.textContent=String(st.tags); t.style.opacity=.9; t.style.fontSize='.85rem'; a.appendChild(t); }
       grid.appendChild(a);
     }
     const wrap=document.createElement('div'); wrap.innerHTML=header; wrap.appendChild(grid); return wrap;
   }
 
-  // ===== UI: Day (Editor) =====
   function DayView(iso){
-    const d = new Date(iso);
-    const st = loadDay(iso) || {};
-    const wrap = document.createElement('div');
+    const st=loadDay(iso)||{};
+    const wrap=document.createElement('div');
     wrap.innerHTML = `
-      <h1 style="margin:0 0 .5rem 0">תצוגת יום — ${iso}</h1>
+      <h1 style="margin:0 0 .5rem 0">תצוגת יום — ${iso} <span id="hebdate" class="pill" style="font-size:.9rem"></span></h1>
       <div class="row">
         <label>תגים: <input id="tags" value="${st.tags||''}" placeholder="תובנות, מתמטיקה"></label>
         <label>מצב רוח:
-          <select id="mood">
-            ${['רגוע','שמח','לחוץ','עייף'].map(x=>`<option ${st.mood===x?'selected':''}>${x}</option>`).join('')}
-          </select>
+          <select id="mood">${['רגוע','שמח','לחוץ','עייף'].map(x=>`<option ${st.mood===x?'selected':''}>${x}</option>`).join('')}</select>
         </label>
         <label>צבע רקע: <input id="bg" type="color" value="${st.bg||'#0b1b2b'}"></label>
       </div>
@@ -166,80 +148,132 @@
         <input type="file" id="file" multiple>
         <button class="btn" id="save">שמירה</button>
         <button class="btn" id="export">יצוא כ-Markdown</button>
-      </div>
-    `;
+        <button class="btn" id="saveGit">שמירה לגיט (PAT)</button>
+        <input id="ghToken" placeholder="GitHub Token חד-פעמי" style="min-width:260px">
+      </div>`;
+
+    // תאריך עברי
+    try{ const hd=window.heDate(new Date(iso)); if(hd){ setTimeout(()=>{ const el=wrap.querySelector('#hebdate'); if(el) el.textContent=hd; },0);} }catch(_){}
 
     // צבע רקע
     document.body.style.background = st.bg||'#0b1b2b';
-    wrap.querySelector('#bg').oninput = (e)=> document.body.style.background = e.target.value;
+    wrap.querySelector('#bg').oninput = e=> document.body.style.background = e.target.value;
 
-    // שמירה מיידית (localStorage)
+    // שמירה מקומית
     wrap.querySelector('#save').onclick = ()=>{
-      const data = {
-        iso,
-        tags: wrap.querySelector('#tags').value.trim(),
-        mood: wrap.querySelector('#mood').value,
-        bg: wrap.querySelector('#bg').value,
-        text: wrap.querySelector('#text').value
+      const data={ iso,
+        tags:wrap.querySelector('#tags').value.trim(),
+        mood:wrap.querySelector('#mood').value,
+        bg:wrap.querySelector('#bg').value,
+        text:wrap.querySelector('#text').value
       };
-      saveDay(iso, data);
+      localStorage.setItem(`journal:${iso}`, JSON.stringify(data));
       alert('נשמר מיידית (מקומית).');
     };
 
-    // יצוא Markdown (להעלאה ל-Git)
+    // יצוא Markdown
     wrap.querySelector('#export').onclick = ()=>{
-      const data = loadDay(iso);
-      const fm = [
-        '---',
-        `כותרת: "יומן ${iso}"`,
-        `תאריך_עברית: ""`,
+      const data=loadDay(iso);
+      const fm=['---',`כותרת: "יומן ${iso}"`,'תאריך_עברית: ""',
         `תגים: [${(data.tags||'').split(',').map(s=>`"${s.trim()}"`).filter(Boolean).join(', ')}]`,
         `מצב_רוח: ${data.mood||'רגוע'}`,
         `צבע_רקע: "${data.bg||'#0b1b2b'}"`,
-        '---','',data.text||'',''
-      ].join('\n');
-      const blob = new Blob([fm], {type:'text/markdown;charset=utf-8'});
-      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${iso}.md`; a.click();
+        '---','',data.text||'',''].join('\n');
+      const blob=new Blob([fm],{type:'text/markdown;charset=utf-8'});
+      const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`${iso}.md`; a.click();
+    };
+
+    // שמירה לגיט (PAT)
+    wrap.querySelector('#saveGit').onclick = async ()=>{
+      const token=(wrap.querySelector('#ghToken').value||localStorage.getItem('gh_token')||'').trim();
+      if(!token){ alert('נא להזין GitHub Token'); return; }
+      localStorage.setItem('gh_token', token);
+
+      const data=loadDay(iso)||{};
+      const fm=['---',`כותרת: "יומן ${iso}"`,'תאריך_עברית: ""',
+        `תגים: [${(data.tags||'').split(',').map(s=>`"${s.trim()}"`).filter(Boolean).join(', ')}]`,
+        `מצב_רוח: ${data.mood||'רגוע'}`,
+        `צבע_רקע: "${data.bg||'#0b1b2b'}"`,
+        '---','',data.text||'',''].join('\n');
+
+      const path=`journal/${iso.substring(0,4)}/${iso}.md`;
+      const owner='yanivmizrachiy', repo='smart-journal-ai-he';
+      const url=`https://api.github.com/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}`;
+
+      let sha;
+      try{
+        const r=await fetch(url,{headers:{Authorization:`Bearer ${token}`}});
+        if(r.ok){ const j=await r.json(); sha=j.sha; }
+      }catch(_){}
+
+      const res=await fetch(url,{
+        method:'PUT',
+        headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},
+        body:JSON.stringify({
+          message:`journal(save): ${iso}`,
+          content:btoa(unescape(encodeURIComponent(fm))),
+          sha
+        })
+      });
+      if(res.ok){ alert('נשמר לגיט בהצלחה'); }
+      else { alert('שגיאה בשמירה לגיט: '+(await res.text())); }
     };
 
     return wrap;
   }
 
-  // ===== Navigation toolbar actions =====
+  // ===== ניווט עליון =====
   document.querySelectorAll('[data-nav]').forEach(el=>{
-    el.onclick = ()=>{
-      const v = el.getAttribute('data-nav');
-      if (v==='month') setParams({view:'month', ym: isoMonth(new Date())});
-      if (v==='week')  setParams({view:'week' , iw: isoWeekId(new Date())});
-      if (v==='day')   setParams({view:'day'  , iso: isoDate(new Date())});
+    el.onclick=()=>{
+      const v=el.getAttribute('data-nav');
+      if(v==='month') setParams({view:'month', ym: isoMonth(new Date())});
+      if(v==='week') setParams({view:'week', iw: isoWeekId(new Date())});
+      if(v==='day')  setParams({view:'day',  iso: isoDate(new Date())});
     };
   });
-  document.getElementById('today').onclick = ()=> setParams({view:getParams().view, ym:isoMonth(new Date()), iw:isoWeekId(new Date()), iso:isoDate(new Date())});
-  document.getElementById('prev').onclick = ()=>{
-    const p=getParams();
-    if (p.view==='month'){ const [Y,M]=p.ym.split('-').map(Number); const dt=new Date(Y,M-2,1); setParams({ym:isoMonth(dt)}); }
-    if (p.view==='week'){  const [Y,w]=p.iw.split('-W').map(Number); const dt=new Date(); dt.setDate(dt.getDate()-7); setParams({iw:isoWeekId(dt)}); }
-    if (p.view==='day'){   const dt=new Date(p.iso); dt.setDate(dt.getDate()-1); setParams({iso:isoDate(dt)}); }
+  document.getElementById('today').onclick=()=>{
+    const view=(new URLSearchParams(location.search).get('view'))||'month';
+    const d=new Date();
+    if(view==='month') setParams({view:'month', ym: isoMonth(d)});
+    else if(view==='week') setParams({view:'week', iw: isoWeekId(d)});
+    else setParams({view:'day', iso: isoDate(d)});
   };
-  document.getElementById('next').onclick = ()=>{
-    const p=getParams();
-    if (p.view==='month'){ const [Y,M]=p.ym.split('-').map(Number); const dt=new Date(Y,M,1); setParams({ym:isoMonth(dt)}); }
-    if (p.view==='week'){  const dt=new Date(); dt.setDate(dt.getDate()+7); setParams({iw:isoWeekId(dt)}); }
-    if (p.view==='day'){   const dt=new Date(p.iso); dt.setDate(dt.getDate()+1); setParams({iso:isoDate(dt)}); }
+  document.getElementById('prev').onclick=()=>{
+    const p=new URLSearchParams(location.search); const view=p.get('view')||'month';
+    if(view==='month'){ const [Y,M]=(p.get('ym')||isoMonth(new Date())).split('-').map(Number); const dt=new Date(Y,M-2,1); setParams({ym: isoMonth(dt)}); }
+    if(view==='week'){  const dt=new Date(); dt.setDate(dt.getDate()-7); setParams({iw: isoWeekId(dt)}); }
+    if(view==='day'){   const iso=p.get('iso')||isoDate(new Date()); const dt=new Date(iso); dt.setDate(dt.getDate()-1); setParams({iso: isoDate(dt)}); }
+  };
+  document.getElementById('next').onclick=()=>{
+    const p=new URLSearchParams(location.search); const view=p.get('view')||'month';
+    if(view==='month'){ const [Y,M]=(p.get('ym')||isoMonth(new Date())).split('-').map(Number); const dt=new Date(Y,M,1); setParams({ym: isoMonth(dt)}); }
+    if(view==='week'){  const dt=new Date(); dt.setDate(dt.getDate()+7); setParams({iw: isoWeekId(dt)}); }
+    if(view==='day'){   const iso=p.get('iso')||isoDate(new Date()); const dt=new Date(iso); dt.setDate(dt.getDate()+1); setParams({iso: isoDate(dt)}); }
   };
 
   // ===== Render =====
   function render(){
-    const p=getParams();
+    const p=new URLSearchParams(location.search);
+    const view=p.get('view')||'month';
+    const ym=p.get('ym')||isoMonth(new Date());
+    const iw=p.get('iw')||isoWeekId(new Date());
+    const iso=p.get('iso')||isoDate(new Date());
     app.innerHTML='';
-    if (p.view==='month') app.appendChild(MonthView(p.ym));
-    else if (p.view==='week') app.appendChild(WeekView(p.iw));
-    else app.appendChild(DayView(p.iso));
+    if(view==='month') app.appendChild(MonthView(ym));
+    else if(view==='week') app.appendChild(WeekView(iw));
+    else app.appendChild(DayView(iso));
   }
 
-  // ברירת מחדל: חודש
-  if (!location.search) setParams({view:'month', ym: isoMonth(new Date())}); else render();
-  window.onpopstate = render;
+  if(!location.search){
+    const d=new Date();
+    history.replaceState({},'',`?view=month&ym=${isoMonth(d)}`);
+  }
+  render();
+  window.onpopstate=render;
+
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('/public/sw.js');
+  }
 })();
 </script>
 </body></html>
